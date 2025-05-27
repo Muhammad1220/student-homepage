@@ -300,7 +300,15 @@
   </style>
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script>
+  // ⚡ Directly using your public Supabase credentials
+  const SUPABASE_URL = 'https://wgwecaozpkgrxoeljbkw.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indnd2VjYW96cGtncnhvZWxqYmt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzMDY0OTIsImV4cCI6MjA2Mzg4MjQ5Mn0.GEtTCRvOsiSljBtDjPFgNooz8hbZxjWDsL9xWl836ik';
 
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  
+</script>
   <!-- NAVBAR -->
   <nav class="navbar">
     <div class="brand">GradGrid 2025</div>
