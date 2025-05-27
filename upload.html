@@ -158,6 +158,35 @@
   </style>
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.js"></script>
+<script>
+  // 1️⃣ Init Supabase client
+  const SUPABASE_URL      = 'https://wgwecaozpkgrxoeljbkw.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi…Wl836ik';
+  // global factory is `supabase`, so build and overwrite it
+  window.supabase = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+  // 2️⃣ Storage helper: upload file, return public URL
+  async function uploadToStorage(file, plotId) {
+    // upload into `uploads/<plotId>/filename`
+    const { error } = await supabase
+      .storage
+      .from('uploads')
+      .upload(`${plotId}/${file.name}`, file, { upsert: true });
+    if (error) throw error;
+
+    // get a public URL back
+    const { data: { publicUrl } } = supabase
+      .storage
+      .from('uploads')
+      .getPublicUrl(`${plotId}/${file.name}`);
+    return publicUrl;
+  }
+</script>
+
   <nav class="navbar">
     <div class="brand">GradGrid 2025</div>
     <div>
@@ -504,43 +533,36 @@
       zoomOutTxt.onclick      =()=>{tSize=Math.round(tSize*0.9);updateTextLive()};
 
       // Submit
-      uploadForm.addEventListener('submit',e=>{
+      // Submit via Supabase Storage
+      uploadForm.addEventListener('submit', async e => {
         e.preventDefault();
-        const type=document.querySelector('input[name="type"]:checked').value;
-        const link=document.getElementById('link-input').value.trim();
-        if(link&&!/^https?:\/\//.test(link)){
-          return alert('Please include http:// or https://');
-        }
-        function finish(dataURL){
-          const key='gradgrid-uploads';
-          const arr=JSON.parse(localStorage.getItem(key)||'[]');
-          arr.push({
-            minR:reservation.minR,
-            maxR:reservation.maxR,
-            minC:reservation.minC,
-            maxC:reservation.maxC,
-            type,data:dataURL,link
+        // 1) Grab the file and reservation info
+        const file = document.getElementById('image-input').files[0];
+        const { minR, minC } = JSON.parse(localStorage.getItem('gradgrid-reservation'));
+        const plotId = `${minR}-${minC}`;
+        try {
+          // 2) Upload to Supabase and get a public URL
+          const imageUrl = await uploadToStorage(file, plotId);
+          // 3) Optional link field
+          const link = document.getElementById('link-input').value.trim();
+          // 4) Record it in localStorage for rendering later
+          const uploads = JSON.parse(localStorage.getItem('gradgrid-uploads') || '[]');
+          uploads.push({
+            minR,
+            maxR: minR,
+            minC,
+            maxC: minC,
+            imageUrl,
+            link
           });
-          localStorage.setItem(key,JSON.stringify(arr));
+          localStorage.setItem('gradgrid-uploads', JSON.stringify(uploads));
           alert('Upload successful! Redirecting…');
-          window.location.href='final.html';
-        }
-        if(type==='image'){
-          if(originalType==='image/gif'){
-            const gifImg=finalPreview.querySelector('.gif-crop-container img');
-            return gifImg?finish(gifImg.src):alert('Something went wrong with your GIF.');
-          }
-          if(!cropper) return alert('Please select & adjust an image.');
-          cropper.getCroppedCanvas().toBlob(blob=>{
-            const r=new FileReader();
-            r.onload=()=>finish(r.result);
-            r.readAsDataURL(blob);
-          });
-        } else {
-          const lastImg=finalPreview.querySelector('img:not(.gif-crop-container img)');
-          return lastImg?finish(lastImg.src):alert('Please enter and preview your text.');
+          window.location.href = 'final.html';
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
         }
       });
+
     });
   </script>
 
