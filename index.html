@@ -433,7 +433,7 @@
           }
 
           const img = document.createElement('img');
-          img.src = u.data;
+          img.src = u.imageUrl || u.data;
           container.appendChild(img);
           canvas.appendChild(container);
         });
@@ -638,7 +638,7 @@
           slide.className = 'gallery-slide' + (i === 0 ? ' active' : '');
           slide.dataset.index = i;
           const img = document.createElement('img');
-          img.src = u.data;
+          img.src = u.imageUrl || u.data;
           img.alt = `Upload ${i + 1}`;
           slide.appendChild(img);
           const cap = document.createElement('div');

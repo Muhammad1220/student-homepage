@@ -162,29 +162,30 @@
 <script>
   // 1️⃣ Init Supabase client
   const SUPABASE_URL      = 'https://wgwecaozpkgrxoeljbkw.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi…Wl836ik';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indnd2VjYW96cGtncnhvZWxqYmt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzMDY0OTIsImV4cCI6MjA2Mzg4MjQ5Mn0.GEtTCRvOsiSljBtDjPFgNooz8hbZxjWDsL9xWl836ik';
   // global factory is `supabase`, so build and overwrite it
   window.supabase = supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY
   );
 
-  // 2️⃣ Storage helper: upload file, return public URL
-  async function uploadToStorage(file, plotId) {
-    // upload into `uploads/<plotId>/filename`
+  // 2️⃣ Storage helper: upload file, return public URL (with URL-encoded filename)
+  async function uploadToStorage(file, plotId, filename = encodeURIComponent(file.name)) {
+    // upload into `uploads/<plotId>/<encoded-filename>`
     const { error } = await supabase
       .storage
       .from('uploads')
-      .upload(`${plotId}/${file.name}`, file, { upsert: true });
+      .upload(`${plotId}/${filename}`, file, { upsert: true });
     if (error) throw error;
 
     // get a public URL back
     const { data: { publicUrl } } = supabase
       .storage
       .from('uploads')
-      .getPublicUrl(`${plotId}/${file.name}`);
+      .getPublicUrl(`${plotId}/${filename}`);
     return publicUrl;
   }
+
 </script>
 
   <nav class="navbar">
@@ -533,32 +534,42 @@
       zoomOutTxt.onclick      =()=>{tSize=Math.round(tSize*0.9);updateTextLive()};
 
       // Submit
-      // Submit via Supabase Storage
-      uploadForm.addEventListener('submit', async e => {
+      // Submit via Supabase Storage (with URL-encoded filename)
+      uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // 1) Grab the file and reservation info
+
+        // 1) Grab the file & reservation info
         const file = document.getElementById('image-input').files[0];
-        const { minR, minC } = JSON.parse(localStorage.getItem('gradgrid-reservation'));
+        if (!file) return alert('Please choose a file to upload.');
+        const { minR, minC } = JSON.parse(localStorage.getItem('gradgrid-reservation') || '{}');
         const plotId = `${minR}-${minC}`;
+
+        // 2) Encode filename (so spaces/special chars are safe)
+        const safeName = encodeURIComponent(file.name);
+
         try {
-          // 2) Upload to Supabase and get a public URL
-          const imageUrl = await uploadToStorage(file, plotId);
-          // 3) Optional link field
+          // 3) Upload to Supabase and get public URL
+          const publicUrl = await uploadToStorage(file, plotId, safeName);
+
+          // 4) Grab the optional link field
           const link = document.getElementById('link-input').value.trim();
-          // 4) Record it in localStorage for rendering later
+
+          // 5) Persist into localStorage for grid rendering
           const uploads = JSON.parse(localStorage.getItem('gradgrid-uploads') || '[]');
           uploads.push({
             minR,
             maxR: minR,
             minC,
             maxC: minC,
-            imageUrl,
+            imageUrl: publicUrl,
             link
           });
           localStorage.setItem('gradgrid-uploads', JSON.stringify(uploads));
+
           alert('Upload successful! Redirecting…');
           window.location.href = 'final.html';
         } catch (err) {
+          console.error(err);
           alert('Upload failed: ' + err.message);
         }
       });
